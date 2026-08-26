@@ -75,14 +75,19 @@
     <section id="setupView" class="view">
       <div class="panel">
         <p class="eyebrow">CLOUD SYNC</p>
-        <h2>Supabase setup</h2>
-        <p class="muted">V1 works immediately without an account. When you deploy it, add your Supabase URL and publishable key in <code>config.js</code> to enable email login and cross-device progress.</p>
+        <h2>Save progress across devices</h2>
+        <p class="muted">Create a private account or sign in. Your test history, weak areas, and adaptive data will sync through Supabase.</p>
         <div class="setup-box">
-          <div><span>1</span><p>Create a Supabase project.</p></div>
-          <div><span>2</span><p>Run <code>supabase/schema.sql</code> in the SQL editor.</p></div>
-          <div><span>3</span><p>Copy <code>config.example.js</code> to <code>config.js</code> and add your project values.</p></div>
+          <label class="auth-field"><span>Email</span><input id="authEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com"></label>
+          <label class="auth-field"><span>Password</span><input id="authPassword" type="password" autocomplete="current-password" placeholder="At least 6 characters"></label>
+          <p id="authStatus" class="muted compact"></p>
         </div>
-        <button id="setupBackBtn" class="primary-btn full" type="button">Back to trainer</button>
+        <div class="auth-actions">
+          <button id="signInBtn" class="primary-btn" type="button">Sign in</button>
+          <button id="signUpBtn" class="secondary-btn" type="button">Create account</button>
+          <button id="signOutBtn" class="secondary-btn hidden" type="button">Sign out</button>
+        </div>
+        <button id="setupBackBtn" class="text-btn full auth-back" type="button">Back to trainer</button>
       </div>
     </section>
 
@@ -172,6 +177,7 @@
     </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script src="questions.js"></script>
   <script src="app.js"></script>

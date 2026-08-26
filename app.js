@@ -18,6 +18,10 @@
   let session = null;
   let timerHandle = null;
   let deferredInstallPrompt = null;
+  let supabaseClient = null;
+  let currentUser = null;
+  let cloudSaveTimer = null;
+  let cloudPullInProgress = false;
 
   function defaultState(){
     return {
@@ -31,7 +35,86 @@
       return raw ? {...defaultState(), ...JSON.parse(raw)} : defaultState();
     }catch{ return defaultState(); }
   }
-  function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  function saveState(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    scheduleCloudSave();
+  }
+
+  function cloudConfigured(){
+    const cfg=window.APP_CONFIG||{};
+    return !!(cfg.supabaseUrl && cfg.supabasePublishableKey && window.supabase?.createClient);
+  }
+
+  function scheduleCloudSave(){
+    if(!supabaseClient || !currentUser || cloudPullInProgress) return;
+    clearTimeout(cloudSaveTimer);
+    cloudSaveTimer=setTimeout(pushProgress,500);
+  }
+
+  async function pushProgress(){
+    if(!supabaseClient || !currentUser) return;
+    const payload={...state};
+    const {error}=await supabaseClient.from('user_progress').upsert({
+      user_id:currentUser.id, progress:payload, updated_at:new Date().toISOString()
+    },{onConflict:'user_id'});
+    if(error){ console.warn('Cloud save failed',error); updateSyncUI('error'); }
+    else updateSyncUI('saved');
+  }
+
+  async function pullProgress(){
+    if(!supabaseClient || !currentUser) return;
+    cloudPullInProgress=true;
+    const {data,error}=await supabaseClient.from('user_progress').select('progress').eq('user_id',currentUser.id).maybeSingle();
+    if(!error && data?.progress){
+      state={...defaultState(),...data.progress};
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+      renderDashboard();
+    } else if(!error && !data){
+      await pushProgress();
+    }
+    cloudPullInProgress=false;
+    updateSyncUI(error?'error':'saved');
+  }
+
+  function updateSyncUI(status=''){
+    const banner=$('authBanner');
+    banner.classList.remove('cloud-ok','cloud-warn');
+    if(currentUser){
+      $('syncTitle').textContent='Cloud sync active';
+      $('syncText').textContent=`Signed in as ${currentUser.email || 'your account'}${status==='saved'?' · Progress saved':''}`;
+      $('syncBtn').textContent='Account';
+      banner.classList.add('cloud-ok');
+    } else if(cloudConfigured()){
+      $('syncTitle').textContent='Cloud sync ready';
+      $('syncText').textContent='Sign in once to save progress across devices.';
+      $('syncBtn').textContent='Sign in';
+      banner.classList.add('cloud-warn');
+    } else {
+      $('syncTitle').textContent='Local progress active';
+      $('syncText').textContent='Your progress is saved on this device.';
+      $('syncBtn').textContent='Setup info';
+    }
+    const signed=!!currentUser;
+    $('signInBtn')?.classList.toggle('hidden',signed);
+    $('signUpBtn')?.classList.toggle('hidden',signed);
+    $('signOutBtn')?.classList.toggle('hidden',!signed);
+    if($('authStatus')) $('authStatus').textContent=signed?`Signed in as ${currentUser.email || 'account'}`:'';
+  }
+
+  async function initCloud(){
+    if(!cloudConfigured()){ updateSyncUI(); return; }
+    const cfg=window.APP_CONFIG;
+    supabaseClient=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    const {data:{session}}=await supabaseClient.auth.getSession();
+    currentUser=session?.user||null;
+    updateSyncUI();
+    if(currentUser) await pullProgress();
+    supabaseClient.auth.onAuthStateChange(async(_event,newSession)=>{
+      currentUser=newSession?.user||null;
+      updateSyncUI();
+      if(currentUser) await pullProgress();
+    });
+  }
 
   function showView(id){
     views.forEach(v=>$(v).classList.toggle('active',v===id));
@@ -391,12 +474,29 @@
   // Optional service worker
   if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}))}
 
-  // Optional Supabase status only; cloud adapter can be enabled without breaking local use.
-  const cfg=window.APP_CONFIG||{};
-  if(cfg.supabaseUrl&&cfg.supabasePublishableKey){
-    $('syncTitle').textContent='Cloud sync configured';
-    $('syncText').textContent='Supabase values are present. Local data remains available as a fallback.';
-  }
+  // Supabase authentication + cross-device progress sync.
+  $('signInBtn')?.addEventListener('click',async()=>{
+    if(!supabaseClient){$('authStatus').textContent='Cloud sync is not configured yet.';return}
+    const email=$('authEmail').value.trim(), password=$('authPassword').value;
+    if(!email||!password){$('authStatus').textContent='Enter your email and password.';return}
+    $('authStatus').textContent='Signing in…';
+    const {error}=await supabaseClient.auth.signInWithPassword({email,password});
+    $('authStatus').textContent=error?error.message:'Signed in.';
+  });
+  $('signUpBtn')?.addEventListener('click',async()=>{
+    if(!supabaseClient){$('authStatus').textContent='Cloud sync is not configured yet.';return}
+    const email=$('authEmail').value.trim(), password=$('authPassword').value;
+    if(!email||password.length<6){$('authStatus').textContent='Use a valid email and a password of at least 6 characters.';return}
+    $('authStatus').textContent='Creating account…';
+    const {data,error}=await supabaseClient.auth.signUp({email,password});
+    if(error) $('authStatus').textContent=error.message;
+    else if(data.session) $('authStatus').textContent='Account created and signed in.';
+    else $('authStatus').textContent='Account created. Check your email to confirm, then sign in.';
+  });
+  $('signOutBtn')?.addEventListener('click',async()=>{
+    if(supabaseClient) await supabaseClient.auth.signOut();
+    currentUser=null;updateSyncUI();
+  });
 
-  renderModes();renderDashboard();showView('homeView');
+  renderModes();renderDashboard();showView('homeView');initCloud();
 })();
