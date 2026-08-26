@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="description" content="Adaptive SHRM-CP practice trainer with timed exam simulation." />
+  <title>SHRM Adaptive Trainer</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-orb orb-a"></div>
+  <div class="bg-orb orb-b"></div>
+
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">SHRM-CP PREP</p>
+        <h1>Adaptive Trainer</h1>
+      </div>
+      <button id="installBtn" class="ghost-btn hidden" type="button">Install</button>
+    </header>
+
+    <section id="authBanner" class="sync-banner">
+      <div>
+        <strong id="syncTitle">Local progress active</strong>
+        <p id="syncText">Your progress is saved on this device. Add Supabase later for account sync.</p>
+      </div>
+      <button id="syncBtn" class="text-btn" type="button">Setup info</button>
+    </section>
+
+    <section id="homeView" class="view active">
+      <div class="hero-card">
+        <div>
+          <p class="muted">Practice the decision-making, pacing, and pressure of the real exam.</p>
+          <h2>Choose your session</h2>
+        </div>
+        <div class="readiness">
+          <span>Overall accuracy</span>
+          <strong id="overallAccuracy">—</strong>
+        </div>
+      </div>
+
+      <div class="mode-grid" id="modeGrid"></div>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">ADAPTIVE ENGINE</p>
+            <h3>Weak areas get more reps</h3>
+          </div>
+          <span id="dueCount" class="pill">0 due</span>
+        </div>
+        <p class="muted compact">Missed questions and lower-accuracy domains are automatically weighted more heavily in Adaptive mode.</p>
+        <div id="domainStats" class="stats-list"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">HISTORY</p>
+            <h3>Recent sessions</h3>
+          </div>
+          <button id="resetDataBtn" class="text-btn danger" type="button">Reset</button>
+        </div>
+        <div id="historyList" class="history-list"></div>
+      </section>
+
+      <p class="fine-print">Independent study tool. Not affiliated with or endorsed by SHRM. Questions are original practice items.</p>
+    </section>
+
+    <section id="setupView" class="view">
+      <div class="panel">
+        <p class="eyebrow">CLOUD SYNC</p>
+        <h2>Supabase setup</h2>
+        <p class="muted">V1 works immediately without an account. When you deploy it, add your Supabase URL and publishable key in <code>config.js</code> to enable email login and cross-device progress.</p>
+        <div class="setup-box">
+          <div><span>1</span><p>Create a Supabase project.</p></div>
+          <div><span>2</span><p>Run <code>supabase/schema.sql</code> in the SQL editor.</p></div>
+          <div><span>3</span><p>Copy <code>config.example.js</code> to <code>config.js</code> and add your project values.</p></div>
+        </div>
+        <button id="setupBackBtn" class="primary-btn full" type="button">Back to trainer</button>
+      </div>
+    </section>
+
+    <section id="quizView" class="view">
+      <div class="quiz-header">
+        <div class="quiz-meta">
+          <div class="badge-row">
+            <span id="modeBadge" class="badge"></span>
+            <span id="domainBadge" class="badge secondary"></span>
+          </div>
+          <span id="questionProgress" class="muted"></span>
+        </div>
+
+        <div class="timer-card">
+          <div>
+            <span class="timer-label">Time remaining</span>
+            <strong id="timer">00:00</strong>
+          </div>
+          <span id="paceIndicator" class="pace neutral">On pace</span>
+        </div>
+      </div>
+
+      <div class="section-lock hidden" id="sectionLockNotice">
+        Section 1 is locked after submission, matching the two-section full exam simulation.
+      </div>
+
+      <article class="question-card">
+        <div class="question-topline">
+          <p id="questionType" class="eyebrow"></p>
+          <button id="flagBtn" type="button" class="flag-btn">☆ Flag</button>
+        </div>
+        <h2 id="questionText"></h2>
+        <form id="answersForm" class="answers"></form>
+      </article>
+
+      <div id="feedback" class="feedback hidden" aria-live="polite"></div>
+
+      <div class="quiz-actions">
+        <button id="quitBtn" type="button" class="secondary-btn">Exit</button>
+        <button id="nextBtn" type="button" class="primary-btn" disabled>Next</button>
+      </div>
+    </section>
+
+    <section id="reviewView" class="view">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">REVIEW</p>
+            <h2>Flagged questions</h2>
+          </div>
+          <span id="flaggedCount" class="pill"></span>
+        </div>
+        <div id="reviewList" class="review-list"></div>
+        <div class="quiz-actions">
+          <button id="reviewBackBtn" type="button" class="secondary-btn">Back</button>
+          <button id="submitSectionBtn" type="button" class="primary-btn">Submit</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="resultsView" class="view">
+      <div class="results-card">
+        <p class="eyebrow">SESSION COMPLETE</p>
+        <h2 id="resultHeadline"></h2>
+        <div class="result-score">
+          <strong id="resultScore"></strong>
+          <span id="resultPercent"></span>
+        </div>
+        <p id="resultTime" class="muted"></p>
+      </div>
+
+      <div id="resultBreakdown" class="panel"></div>
+
+      <div class="quiz-actions">
+        <button id="reviewMissesBtn" type="button" class="secondary-btn">Review misses</button>
+        <button id="homeBtn" type="button" class="primary-btn">Dashboard</button>
+      </div>
+    </section>
+
+    <section id="missesView" class="view">
+      <div class="panel">
+        <p class="eyebrow">MISSED QUESTIONS</p>
+        <h2>Learn from the misses</h2>
+        <div id="missesList" class="misses-list"></div>
+        <button id="missesBackBtn" class="primary-btn full" type="button">Back to results</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="questions.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
